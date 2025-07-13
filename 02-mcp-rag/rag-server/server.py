@@ -15,12 +15,45 @@ mcp = FastMCP("rag")
 _index: faiss.IndexFlatL2 = faiss.IndexFlatL2(1536)
 _docs: List[str] = []
 
-# OpenAI API（用于生成嵌入）
-openai = OpenAI()
+# 动态选择 API 提供商
+def get_api_client():
+    """根据环境变量动态选择 API 提供商"""
+    api_provider = os.getenv("API_PROVIDER", "deepseek").lower()
+    
+    if api_provider == "deepseek":
+        return OpenAI(
+            api_key=os.getenv("DEEPSEEK_API_KEY"),
+            base_url="https://api.deepseek.com/v1"
+        ), "text-embedding-3-small"
+    
+    elif api_provider == "openai":
+        return OpenAI(
+            api_key=os.getenv("OPENAI_API_KEY"),
+            base_url="https://api.openai.com/v1"
+        ), "text-embedding-3-small"
+    
+    elif api_provider == "ali":
+        return OpenAI(
+            api_key=os.getenv("DASHSCOPE_API_KEY"),
+            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"
+        ), "text-embedding-v4"
+    
+    elif api_provider == "claude":
+        return OpenAI(
+            api_key=os.getenv("ANTHROPIC_API_KEY"),
+            base_url="https://api.anthropic.com/v1"
+        ), "text-embedding-3-small"
+    
+    else:
+        raise ValueError(f"不支持的 API 提供商: {api_provider}")
+
+# 初始化 API 客户端
+client, embedding_model = get_api_client()
+print(f"使用 API 提供商: {os.getenv('API_PROVIDER', 'deepseek')}")
 
 async def embed_text(texts: List[str]) -> np.ndarray:
-    resp = openai.embeddings.create(
-        model="text-embedding-3-small",
+    resp = client.embeddings.create(
+        model=embedding_model,
         input=texts,
         encoding_format="float"
     )

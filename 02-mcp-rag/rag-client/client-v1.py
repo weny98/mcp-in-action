@@ -1,6 +1,6 @@
 # source .venv/bin/activate
 # uv run client.py ../rag-server/server.py
-import sys, asyncio
+import sys, asyncio, os
 from mcp import ClientSession
 from mcp.client.stdio import stdio_client, StdioServerParameters
 from anthropic import Anthropic
@@ -16,12 +16,23 @@ class RagClient:
 
     async def connect(self, server_script: str):
         # 1) 构造参数对象
+        # 处理相对路径，将 … 替换为 ..
+        if '…' in server_script:
+            server_script = server_script.replace('…', '..')
+        
+        # 获取服务器脚本的绝对路径
+        server_script_abs = os.path.abspath(server_script)
+        server_dir = os.path.dirname(server_script_abs)
+        
+        # 根据操作系统确定Python解释器路径
+        if os.name == 'nt':  # Windows
+            python_path = os.path.join(server_dir, ".venv", "Scripts", "python.exe")
+        else:  # Linux/Mac
+            python_path = os.path.join(server_dir, ".venv", "bin", "python")
+        
         params = StdioServerParameters(
-            # command="uv",
-            command="/home/huangj2/Documents/mcp-in-action/02-mcp-rag/rag-server/.venv/bin/python",
-            # command="/home/huangj2/Documents/mcp-in-action/02-mcp-rag/rag-server/.venv/bin/uv",
-            # args=["run", server_script],
-            args=["-u",server_script],
+            command=python_path,
+            args=["-u", server_script_abs],
         )
         # 2) 保存上下文管理器
         self.transport = stdio_client(params)
